@@ -55,6 +55,15 @@
   </div>
 </div>
 
+<!-- Dynamic summary -->
+<div class="card px-5 py-4 mb-6 border-l-4 border-indigo-400" id="summary-card">
+  <div class="flex items-center justify-between mb-2.5">
+    <p class="text-sm font-semibold text-slate-700">Résumé de la période</p>
+    <span class="text-xs text-slate-400" id="summary-period"></span>
+  </div>
+  <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5 text-sm text-slate-600" id="summary-list"></ul>
+</div>
+
 <!-- KPIs -->
 <div class="grid grid-cols-2 sm:grid-cols-6 gap-3 mb-6" id="kpi-grid">
   <div class="card p-4"><p class="text-xs text-slate-500 uppercase tracking-wide mb-1">URLs</p><p class="kpi-val text-slate-800">45</p><p class="text-xs text-slate-400 mt-1">suivies</p></div>
@@ -346,6 +355,9 @@ function refresh() {
   document.getElementById('kpi-sessions').textContent = fmt(totalSess);
   document.getElementById('kpi-deals').textContent = totalDeals;
 
+  // ── Summary ───────────────────────────────────────────────────
+  buildSummary(from, to, gscBySlug, ga4BySlug, dealsBySlug);
+
   // ── Travel table ──────────────────────────────────────────────
   const tb = document.getElementById('travel-tbody');
   tb.innerHTML = '';
@@ -474,6 +486,87 @@ function refresh() {
       }
     }
   });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DYNAMIC SUMMARY
+// ═══════════════════════════════════════════════════════════════
+function buildSummary(from, to, gscBySlug, ga4BySlug, dealsBySlug) {
+  const items = [];
+
+  // Previous period totals for trend
+  const fromDate   = dateFromNum(from);
+  const toDate     = dateFromNum(to);
+  const durationMs = toDate - fromDate;
+  const prevToDate   = new Date(fromDate - 86400000);
+  const prevFromDate = new Date(prevToDate - durationMs);
+  const prevFrom = numFromDate(prevFromDate);
+  const prevTo   = numFromDate(prevToDate);
+  let sumCurr = 0, sumPrev = 0;
+  for (const r of GSC_WEEKLY) {
+    const rDate = toNum(r.d);
+    if (rDate >= from && rDate <= to)       sumCurr += r.i;
+    else if (rDate >= prevFrom && rDate <= prevTo) sumPrev += r.i;
+  }
+
+  // 1. Impressions trend
+  if (sumPrev > 0) {
+    const pct = Math.round((sumCurr - sumPrev) / sumPrev * 100);
+    const up  = pct >= 0;
+    const col = up ? 'text-emerald-600' : 'text-red-500';
+    items.push(`<span class="${col} font-semibold">${up?'↑':'↓'} ${up?'+':''}${pct}% d'impressions</span> vs la même durée précédente (${sumPrev} → ${sumCurr})`);
+  } else {
+    items.push(`<span class="font-semibold text-violet-600">${sumCurr} impressions GSC</span> sur la période — pas de données antérieures pour comparer`);
+  }
+
+  // 2. Page leader
+  const allGsc    = Object.entries(gscBySlug).filter(([,v])=>v.imp>0).sort((a,b)=>b[1].imp-a[1].imp);
+  const totalImp  = allGsc.reduce((s,[,v])=>s+v.imp,0);
+  if (allGsc.length > 0) {
+    const [topSlug, topData] = allGsc[0];
+    const pct = totalImp > 0 ? Math.round(topData.imp/totalImp*100) : 0;
+    items.push(`Page leader : <span class="font-semibold text-indigo-600">${topSlug.replace('to-','')}</span> avec <b>${topData.imp}</b> impressions (${pct}% du total)`);
+  }
+
+  // 3. Best position
+  const withPos = Object.entries(gscBySlug).filter(([,v])=>v.posW>0)
+    .sort((a,b)=>(a[1].posSum/a[1].posW)-(b[1].posSum/b[1].posW));
+  if (withPos.length > 0) {
+    const [slug, v] = withPos[0];
+    const avg = (v.posSum/v.posW).toFixed(1);
+    items.push(`Meilleure position : <span class="font-semibold text-emerald-600">${slug.replace('to-','')}</span> à <b>pos. ${avg}</b> en moyenne`);
+  }
+
+  // 4. Deals
+  const dealSlugs  = Object.keys(dealsBySlug);
+  const totalDeals = dealSlugs.reduce((s,k)=>s+dealsBySlug[k],0);
+  if (totalDeals > 0) {
+    items.push(`<span class="font-semibold text-emerald-600">${totalDeals} deal${totalDeals>1?'s':''}</span> générés · pages : ${dealSlugs.map(s=>s.replace('to-','')).join(', ')}`);
+  } else {
+    items.push(`Aucun deal Payload sur la période sélectionnée`);
+  }
+
+  // 5. CTR
+  const totalClk = Object.values(gscBySlug).reduce((a,b)=>a+b.clicks,0);
+  if (totalImp > 0) {
+    const ctr = (totalClk/totalImp*100).toFixed(1);
+    const note = parseFloat(ctr) < 1 ? ' — pages encore loin du top 10' : parseFloat(ctr) < 3 ? ' — CTR à améliorer' : ' — bon CTR';
+    items.push(`CTR : <b>${ctr}%</b> (${totalClk} clics / ${totalImp} impressions)${note}`);
+  }
+
+  // 6. Top GA4
+  const ga4sorted = Object.entries(ga4BySlug).sort((a,b)=>b[1].s-a[1].s);
+  if (ga4sorted.length > 0) {
+    const [path, {s}] = ga4sorted[0];
+    const name = path.replace('/fr/travel-insurance/','');
+    items.push(`Plus de sessions GA4 : <span class="font-semibold text-blue-600">${name}</span> avec <b>${s}</b> sessions`);
+  }
+
+  const periodStr = `${dateFromNum(from).toISOString().slice(0,10)} → ${dateFromNum(to).toISOString().slice(0,10)}`;
+  document.getElementById('summary-period').textContent = periodStr;
+  document.getElementById('summary-list').innerHTML = items
+    .map(t=>`<li class="flex gap-1.5 items-start"><span class="text-slate-300 mt-0.5 shrink-0">▸</span><span>${t}</span></li>`)
+    .join('');
 }
 
 // ═══════════════════════════════════════════════════════════════
