@@ -115,9 +115,23 @@
 
   <!-- Trend chart -->
   <div id="panel-trend" class="hidden px-6 py-5">
-    <p class="text-sm font-semibold text-slate-700 mb-1">Impressions GSC — Top 6 pages (hebdo)</p>
-    <p class="text-xs text-slate-400 mb-4" id="trend-subtitle"></p>
-    <canvas id="trendChart" height="80"></canvas>
+    <!-- Comparison chart: current vs previous period -->
+    <div class="mb-6">
+      <div class="flex flex-wrap items-start justify-between gap-2 mb-3">
+        <div>
+          <p class="text-sm font-semibold text-slate-700">Impressions & Clics GSC — Période courante vs précédente</p>
+          <p class="text-xs text-slate-400 mt-0.5" id="comp-subtitle"></p>
+        </div>
+        <div class="flex gap-3" id="comp-deltas"></div>
+      </div>
+      <canvas id="compChart" height="75"></canvas>
+    </div>
+    <!-- Per-page impressions breakdown -->
+    <div class="border-t border-slate-100 pt-5">
+      <p class="text-sm font-semibold text-slate-700 mb-1">Impressions GSC — Top 6 pages (hebdo)</p>
+      <p class="text-xs text-slate-400 mb-4" id="trend-subtitle"></p>
+      <canvas id="trendChart" height="70"></canvas>
+    </div>
   </div>
 </div>
 
@@ -246,9 +260,30 @@ const statusBadge = (imp,c) => imp===0?'<span class="badge-none text-xs px-2 py-
 const fmt = n => n>=1000?`${(n/1000).toFixed(1)}k`:String(n);
 
 // ═══════════════════════════════════════════════════════════════
+// COMPARISON CHART HELPERS
+// ═══════════════════════════════════════════════════════════════
+function dateFromNum(n) {
+  const s = String(n);
+  return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`);
+}
+function numFromDate(d) {
+  return parseInt(d.toISOString().slice(0,10).replace(/-/g,''));
+}
+function fmtLabel(d) {
+  return d.slice(5,10); // MM-DD
+}
+function deltaBadge(curr, prev) {
+  if (!prev) return '';
+  const pct = Math.round((curr - prev) / prev * 100);
+  const pos = pct >= 0;
+  const col = pos ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-red-700 bg-red-50 border-red-200';
+  return `<span class="text-xs px-2 py-1 rounded-full border ${col} font-semibold">${pos?'+':''}${pct}%</span>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // CORE FILTER FUNCTION
 // ═══════════════════════════════════════════════════════════════
-let chartInst = null;
+let chartInst = null, compInst = null;
 
 function refresh() {
   const from = toNum(document.getElementById('dateFrom').value);
@@ -348,6 +383,109 @@ function refresh() {
     type:'line',
     data:{labels:weekDates.map(d=>d.slice(5,10)),datasets},
     options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{beginAtZero:true,grid:{color:'rgba(0,0,0,.04)'},ticks:{font:{size:9}}}}}
+  });
+
+  // ── Comparison chart (impressions + clicks, current vs previous period) ──
+  const fromDate  = dateFromNum(from);
+  const toDate    = dateFromNum(to);
+  const durationMs = toDate - fromDate;
+  const prevToDate   = new Date(fromDate - 86400000);
+  const prevFromDate = new Date(prevToDate - durationMs);
+  const prevFrom = numFromDate(prevFromDate);
+  const prevTo   = numFromDate(prevToDate);
+
+  // Aggregate all pages by week
+  const currAgg = {}, prevAgg = {};
+  for (const r of GSC_WEEKLY) {
+    const rDate = toNum(r.d);
+    if (rDate >= from && rDate <= to) {
+      if (!currAgg[r.d]) currAgg[r.d] = {imp:0,c:0};
+      currAgg[r.d].imp += r.i; currAgg[r.d].c += r.c;
+    } else if (rDate >= prevFrom && rDate <= prevTo) {
+      if (!prevAgg[r.d]) prevAgg[r.d] = {imp:0,c:0};
+      prevAgg[r.d].imp += r.i; prevAgg[r.d].c += r.c;
+    }
+  }
+
+  const currWeeks = Object.keys(currAgg).sort();
+  const prevWeeks = Object.keys(prevAgg).sort();
+  const maxLen = Math.max(currWeeks.length, prevWeeks.length);
+
+  const currImp = currWeeks.map(w=>currAgg[w].imp);
+  const currClk = currWeeks.map(w=>currAgg[w].c);
+  const prevImp = prevWeeks.map(w=>prevAgg[w].imp);
+  const prevClk = prevWeeks.map(w=>prevAgg[w].c);
+
+  // Totals for delta badges
+  const sumCurrImp = currImp.reduce((a,b)=>a+b,0);
+  const sumPrevImp = prevImp.reduce((a,b)=>a+b,0);
+  const sumCurrClk = currClk.reduce((a,b)=>a+b,0);
+  const sumPrevClk = prevClk.reduce((a,b)=>a+b,0);
+
+  // Labels = current period week labels (index-aligned with previous)
+  const compLabels = Array.from({length:maxLen},(_,i)=>
+    i < currWeeks.length ? fmtLabel(currWeeks[i]) : ''
+  );
+
+  document.getElementById('comp-subtitle').textContent =
+    `${prevFromDate.toISOString().slice(0,10)} → ${prevToDate.toISOString().slice(0,10)}  vs  ${dateFromNum(from).toISOString().slice(0,10)} → ${dateFromNum(to).toISOString().slice(0,10)}`;
+
+  document.getElementById('comp-deltas').innerHTML =
+    `<div class="flex items-center gap-1.5 text-xs text-slate-500"><span class="w-2 h-2 rounded-full bg-indigo-500 inline-block"></span>Impressions ${deltaBadge(sumCurrImp, sumPrevImp)}</div>` +
+    `<div class="flex items-center gap-1.5 text-xs text-slate-500"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>Clics ${deltaBadge(sumCurrClk, sumPrevClk)}</div>`;
+
+  const compData = {
+    labels: compLabels,
+    datasets: [
+      {
+        label: `Imp. période (${dateFromNum(from).toISOString().slice(0,10)})`,
+        data: [...currImp, ...Array(maxLen-currImp.length).fill(null)],
+        borderColor:'#6366f1', backgroundColor:'#6366f115',
+        yAxisID:'yImp', tension:.3, pointRadius:2, borderWidth:2, fill:true
+      },
+      {
+        label: `Imp. précédente (${prevFromDate.toISOString().slice(0,10)})`,
+        data: [...prevImp, ...Array(maxLen-prevImp.length).fill(null)],
+        borderColor:'#6366f1', backgroundColor:'transparent',
+        borderDash:[4,3], yAxisID:'yImp', tension:.3, pointRadius:2, borderWidth:1.5
+      },
+      {
+        label: `Clics période (${dateFromNum(from).toISOString().slice(0,10)})`,
+        data: [...currClk, ...Array(maxLen-currClk.length).fill(null)],
+        borderColor:'#10b981', backgroundColor:'#10b98115',
+        yAxisID:'yClk', tension:.3, pointRadius:2, borderWidth:2, fill:true
+      },
+      {
+        label: `Clics précédents (${prevFromDate.toISOString().slice(0,10)})`,
+        data: [...prevClk, ...Array(maxLen-prevClk.length).fill(null)],
+        borderColor:'#10b981', backgroundColor:'transparent',
+        borderDash:[4,3], yAxisID:'yClk', tension:.3, pointRadius:2, borderWidth:1.5
+      }
+    ]
+  };
+
+  if (compInst) compInst.destroy();
+  compInst = new Chart(document.getElementById('compChart').getContext('2d'),{
+    type:'line',
+    data: compData,
+    options:{
+      responsive:true,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{position:'top',labels:{boxWidth:10,font:{size:10}}},
+        tooltip:{callbacks:{title:lbls=>{
+          const i = compLabels.indexOf(lbls[0].label);
+          const curr = i<currWeeks.length?currWeeks[i]:'';
+          const prev = i<prevWeeks.length?prevWeeks[i]:'';
+          return [curr?`Période: sem. ${curr}`:'', prev?`Précéd.: sem. ${prev}`:''].filter(Boolean);
+        }}}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:9}}},
+        yImp:{position:'left', beginAtZero:true, grid:{color:'rgba(0,0,0,.04)'}, ticks:{font:{size:9}}, title:{display:true,text:'Impressions',font:{size:9},color:'#6366f1'}},
+        yClk:{position:'right', beginAtZero:true, grid:{drawOnChartArea:false}, ticks:{font:{size:9}}, title:{display:true,text:'Clics',font:{size:9},color:'#10b981'}}
+      }
+    }
   });
 }
 
