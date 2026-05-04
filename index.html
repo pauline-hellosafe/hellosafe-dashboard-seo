@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SEO Dashboard — New URLs Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; background: #f8fafc; }
+    .badge-indexed    { background:#dcfce7; color:#166534; }
+    .badge-crawled    { background:#fef9c3; color:#854d0e; }
+    .badge-not-indexed{ background:#fee2e2; color:#991b1b; }
+    .badge-payload    { background:#ede9fe; color:#5b21b6; }
+    .badge-no-payload { background:#f1f5f9; color:#64748b; }
+    .pos-great  { color:#16a34a; font-weight:600; }
+    .pos-good   { color:#ca8a04; font-weight:600; }
+    .pos-avg    { color:#ea580c; font-weight:600; }
+    .pos-bad    { color:#dc2626; font-weight:600; }
+    .tab-active { border-bottom: 2px solid #6366f1; color:#6366f1; font-weight:600; }
+    .tab-inactive { border-bottom: 2px solid transparent; color:#94a3b8; }
+    .tab-inactive:hover { color:#475569; }
+    th { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; }
+    td { font-size:13px; }
+    tr:hover td { background:#f8fafc; }
+    .kpi-card { background:white; border-radius:12px; padding:20px 24px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+    .section-card { background:white; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.06); overflow:hidden; }
+  </style>
+</head>
+<body class="p-6">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-xl font-bold text-slate-800">New URLs Tracker</h1>
+      <p class="text-sm text-slate-500 mt-0.5">hellosafe.com · GSC (Ahrefs) + GA4 + Payload · Fév → Mai 2026</p>
+    </div>
+    <div class="text-right text-xs text-slate-400">
+      Données au <strong class="text-slate-600">4 mai 2026</strong><br/>
+      Période : 2026-02-01 → 2026-05-04
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
+    <div class="kpi-card">
+      <p class="text-xs text-slate-500 uppercase tracking-wide mb-1">URLs suivies</p>
+      <p class="text-3xl font-bold text-slate-800">45</p>
+      <p class="text-xs text-slate-400 mt-1">Travel + Credit Card</p>
+    </div>
+    <div class="kpi-card">
+      <p class="text-xs text-slate-500 uppercase tracking-wide mb-1">Indexées GSC</p>
+      <p class="text-3xl font-bold text-emerald-600">22</p>
+      <p class="text-xs text-slate-400 mt-1">sur 45 · 49%</p>
+    </div>
+    <div class="kpi-card">
+      <p class="text-xs text-slate-500 uppercase tracking-wide mb-1">Impressions GSC</p>
+      <p class="text-3xl font-bold text-violet-600">1 616</p>
+      <p class="text-xs text-slate-400 mt-1">Travel insurance FR+ES</p>
+    </div>
+    <div class="kpi-card">
+      <p class="text-xs text-slate-500 uppercase tracking-wide mb-1">Sessions GA4</p>
+      <p class="text-3xl font-bold text-blue-600">490</p>
+      <p class="text-xs text-slate-400 mt-1">Toutes pages confondues</p>
+    </div>
+    <div class="kpi-card">
+      <p class="text-xs text-slate-500 uppercase tracking-wide mb-1">Pageviews GA4</p>
+      <p class="text-3xl font-bold text-indigo-600">640</p>
+      <p class="text-xs text-slate-400 mt-1">Travel + CC insurance</p>
+    </div>
+    <div class="kpi-card border-t-4 border-emerald-400">
+      <p class="text-xs text-slate-500 uppercase tracking-wide mb-1">Deals Payload</p>
+      <p class="text-3xl font-bold text-emerald-600">13</p>
+      <p class="text-xs text-slate-400 mt-1">Souscriptions FR · fév–mai</p>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="section-card mb-6">
+    <div class="flex gap-6 px-6 pt-4 border-b border-slate-100">
+      <button onclick="showTab('travel')" id="tab-travel" class="pb-3 text-sm tab-active transition-colors">✈️ Travel Insurance (FR)</button>
+      <button onclick="showTab('creditcard')" id="tab-creditcard" class="pb-3 text-sm tab-inactive transition-colors">💳 Credit Card Insurance</button>
+      <button onclick="showTab('es')" id="tab-es" class="pb-3 text-sm tab-inactive transition-colors">🇪🇸 Travel Insurance (ES)</button>
+      <button onclick="showTab('trend')" id="tab-trend" class="pb-3 text-sm tab-inactive transition-colors">📈 Tendances</button>
+    </div>
+
+    <!-- TRAVEL INSURANCE FR -->
+    <div id="panel-travel">
+      <div class="px-6 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+        <p class="text-xs text-slate-500">27 URLs · <code class="bg-slate-100 px-1 rounded">hellosafe.com/fr/travel-insurance/</code></p>
+        <div class="flex gap-4 text-xs text-slate-400">
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-violet-400 inline-block"></span>GSC</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-400 inline-block"></span>GA4</span>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead>
+            <tr class="border-b border-slate-100">
+              <th class="text-left px-6 py-3">URL</th>
+              <th class="text-center px-3 py-3">Statut</th>
+              <th class="text-right px-3 py-3 text-violet-500">Impressions</th>
+              <th class="text-right px-3 py-3 text-violet-500">Clics GSC</th>
+              <th class="text-right px-3 py-3 text-violet-500">Position</th>
+              <th class="text-right px-3 py-3 text-blue-500">Sessions</th>
+              <th class="text-right px-3 py-3 text-blue-500">Pageviews</th>
+              <th class="text-right px-3 py-3 text-emerald-500">Deals</th>
+              <th class="text-left px-3 py-3">Top keyword</th>
+            </tr>
+          </thead>
+          <tbody id="travel-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CREDIT CARD INSURANCE -->
+    <div id="panel-creditcard" class="hidden">
+      <div class="px-6 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+        <p class="text-xs text-slate-500">18 URLs · <code class="bg-slate-100 px-1 rounded">hellosafe.com/fr/credit-card-insurance/france/</code></p>
+        <p class="text-xs text-slate-400">GSC : aucune donnée · GA4 : BoursoBank seulement</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead>
+            <tr class="border-b border-slate-100">
+              <th class="text-left px-6 py-3">Banque</th>
+              <th class="text-left px-4 py-3">Carte</th>
+              <th class="text-center px-4 py-3">Statut GSC</th>
+              <th class="text-center px-4 py-3">Payload</th>
+              <th class="text-right px-4 py-3 text-blue-500">Sessions GA4</th>
+              <th class="text-right px-4 py-3 text-blue-500">Pageviews GA4</th>
+            </tr>
+          </thead>
+          <tbody id="cc-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TRAVEL INSURANCE ES -->
+    <div id="panel-es" class="hidden">
+      <div class="px-6 py-3 bg-slate-50 border-b border-slate-100">
+        <p class="text-xs text-slate-500">1 URL suivie · <code class="bg-slate-100 px-1 rounded">hellosafe.com/es/travel-insurance/to-europe</code></p>
+      </div>
+      <table class="w-full">
+        <thead>
+          <tr class="border-b border-slate-100">
+            <th class="text-left px-6 py-3">URL</th>
+            <th class="text-center px-3 py-3">Statut</th>
+            <th class="text-right px-3 py-3 text-violet-500">Impressions</th>
+            <th class="text-right px-3 py-3 text-violet-500">Position</th>
+            <th class="text-left px-3 py-3">Top keyword</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-50">
+            <td class="px-6 py-2.5"><a href="https://hellosafe.com/es/travel-insurance/to-europe" target="_blank" class="text-indigo-500 hover:underline font-mono text-xs">/es/travel-insurance/to-europe</a></td>
+            <td class="px-3 py-2.5 text-center"><span class="badge-crawled text-xs px-2 py-0.5 rounded-full">En crawl</span></td>
+            <td class="px-3 py-2.5 text-right">4</td>
+            <td class="px-3 py-2.5 text-right pos-bad">69.8</td>
+            <td class="px-3 py-2.5 text-xs text-slate-500">seguro de viaje a europa</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="px-6 py-3 bg-amber-50 border-t border-amber-100">
+        <p class="text-xs text-amber-700">⚠️ D'autres pages ES (to-usa, to-morocco, to-thailand, to-japan, to-colombia, to-canada) ont des données GSC mais ne sont pas dans ce tracking.</p>
+      </div>
+    </div>
+
+    <!-- TREND CHART -->
+    <div id="panel-trend" class="hidden px-6 py-6">
+      <div class="grid grid-cols-2 gap-6">
+        <div>
+          <h3 class="text-sm font-semibold text-slate-700 mb-1">Impressions GSC — Top 4 pages (hebdo)</h3>
+          <p class="text-xs text-slate-400 mb-3">Fév–Mai 2026 · hellosafe.com/fr/travel-insurance/</p>
+          <canvas id="trendChart" height="140"></canvas>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-slate-700 mb-1">Sessions GA4 — Top pages</h3>
+          <p class="text-xs text-slate-400 mb-3">Total fév–mai 2026 · toutes sources</p>
+          <canvas id="sessionChart" height="140"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payload Status -->
+  <div class="section-card mb-6">
+    <div class="px-6 py-4 border-b border-slate-100">
+      <h2 class="text-sm font-semibold text-slate-700">Payload CMS — Cartes crédit</h2>
+      <p class="text-xs text-slate-400 mt-0.5">4 cartes trouvées sur 18 dans la collection <code>cards</code></p>
+    </div>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 p-6">
+      <div class="rounded-lg border border-violet-200 bg-violet-50 p-3">
+        <p class="text-xs text-violet-600 font-medium mb-1">visa-infinite-lcl</p>
+        <p class="text-xs text-slate-500">LCL · ID: 14</p>
+        <span class="badge-payload text-xs px-2 py-0.5 rounded-full mt-2 inline-block">✓ Payload OK</span>
+      </div>
+      <div class="rounded-lg border border-violet-200 bg-violet-50 p-3">
+        <p class="text-xs text-violet-600 font-medium mb-1">visa-premier-lcl</p>
+        <p class="text-xs text-slate-500">LCL · ID: 13</p>
+        <span class="badge-payload text-xs px-2 py-0.5 rounded-full mt-2 inline-block">✓ Payload OK</span>
+      </div>
+      <div class="rounded-lg border border-violet-200 bg-violet-50 p-3">
+        <p class="text-xs text-violet-600 font-medium mb-1">visa-classic-lcl</p>
+        <p class="text-xs text-slate-500">LCL · ID: 12</p>
+        <span class="badge-payload text-xs px-2 py-0.5 rounded-full mt-2 inline-block">✓ Payload OK</span>
+      </div>
+      <div class="rounded-lg border border-violet-200 bg-violet-50 p-3">
+        <p class="text-xs text-violet-600 font-medium mb-1">visa-premier-caisse-epargne</p>
+        <p class="text-xs text-slate-500">CE · ID: 11</p>
+        <span class="badge-payload text-xs px-2 py-0.5 rounded-full mt-2 inline-block">✓ Payload OK</span>
+      </div>
+    </div>
+    <div class="px-6 pb-5">
+      <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+        ⚠️ <strong>14 cartes manquantes dans Payload</strong> : mastercard-inventive, mastercard-platinum-plus, mastercard-excellence, mastercard-platinum-lcl, mastercard-standard, visa-cleo, visa-electron-sensea (CE), visa-platinum (CE), visa-infinite (CE), visa-classic (CE), visa-premier/welcome/metal/ultim (BoursoBank)
+      </div>
+    </div>
+  </div>
+
+  <!-- Insights -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="kpi-card border-l-4 border-emerald-400">
+      <p class="text-xs font-semibold text-emerald-700 mb-2">✅ Ça convertit</p>
+      <ul class="text-xs text-slate-600 space-y-1">
+        <li>→ <strong>to-usa : 4 deals</strong> · 211 sessions · 229 imp GSC</li>
+        <li>→ <strong>to-morocco : 4 deals</strong> · 33 sessions · 275 imp GSC</li>
+        <li>→ <strong>to-japan : 3 deals</strong> · 27 sessions · 54 imp GSC</li>
+        <li>→ to-algeria + to-thailand : 1 deal chacun</li>
+      </ul>
+    </div>
+    <div class="kpi-card border-l-4 border-amber-400">
+      <p class="text-xs font-semibold text-amber-700 mb-2">⚡ À surveiller</p>
+      <ul class="text-xs text-slate-600 space-y-1">
+        <li>→ USA : 58 sessions Referral (source à identifier)</li>
+        <li>→ Japan : utm_source=chatgpt.com → 2 deals via ChatGPT !</li>
+        <li>→ Europe FR : pos 23 GSC, proche page 2</li>
+        <li>→ NZ : pos 21 GSC, 0 session GA4 — indexée mais pas cliquée</li>
+      </ul>
+    </div>
+    <div class="kpi-card border-l-4 border-red-400">
+      <p class="text-xs font-semibold text-red-700 mb-2">🚨 À corriger</p>
+      <ul class="text-xs text-slate-600 space-y-1">
+        <li>→ 12 pages travel : pas encore dans GSC</li>
+        <li>→ LCL + CE : 0 sessions GA4, 0 GSC, 0 deals</li>
+        <li>→ 14 cartes manquantes dans Payload</li>
+      </ul>
+    </div>
+  </div>
+
+<script>
+// ─── DEALS FROM PAYLOAD ───────────────────────────────────────────────────
+const dealsData = {
+  'to-usa':      4,
+  'to-morocco':  4,
+  'to-japan':    3,
+  'to-algeria':  1,
+  'to-thailand': 1,
+};
+
+// ─── GA4 AGGREGATED BY PAGE ────────────────────────────────────────────────
+const ga4Raw = [
+  {p:'/fr/travel-insurance/to-usa', s:65+58+29+16+11+10+8+8+2+2+1+1, pv:85+91+24+22+10+11+7+10+2+2+1+1},
+  {p:'/fr/travel-insurance/to-thailand', s:14+9+7+5+3+1, pv:14+10+8+6+6+1},
+  {p:'/fr/travel-insurance/to-morocco', s:9+7+5+4+4+2+2, pv:14+9+7+6+5+11+1},
+  {p:'/fr/travel-insurance/to-canada', s:11+6+3+2+2+2+2+1+1+1, pv:19+15+3+3+3+2+2+2+3+2},
+  {p:'/fr/travel-insurance/to-japan', s:8+8+8+2+1, pv:8+20+22+2+2},
+  {p:'/fr/travel-insurance/to-algeria', s:14+9+2+1+1, pv:18+10+2+2+1},
+  {p:'/fr/travel-insurance/to-europe', s:8+4+2+1+1+1, pv:11+3+6+1+1+1},
+  {p:'/fr/travel-insurance/to-australia', s:7+2+2, pv:9+2+3},
+  {p:'/fr/travel-insurance/to-vietnam', s:3, pv:3},
+  {p:'/fr/travel-insurance/to-china', s:2+2+2, pv:1+0+1},
+  {p:'/fr/travel-insurance/to-egypt', s:2, pv:1},
+  {p:'/fr/travel-insurance/to-india', s:2, pv:2},
+  {p:'/fr/travel-insurance/to-bali', s:1+1, pv:2+1},
+  {p:'/fr/travel-insurance/to-brazil', s:1+1, pv:1+1},
+  {p:'/fr/travel-insurance/to-mexico', s:1+1, pv:1+1},
+  {p:'/fr/travel-insurance/to-uae', s:1+1, pv:1+1},
+  {p:'/fr/travel-insurance/to-zanzibar', s:1+1, pv:2+1},
+  {p:'/fr/travel-insurance/to-argentina', s:1, pv:1},
+  {p:'/fr/travel-insurance/to-asia', s:1, pv:1},
+  {p:'/fr/travel-insurance/to-colombia', s:1, pv:1},
+  {p:'/fr/travel-insurance/to-costa-rica', s:1, pv:0},
+  {p:'/fr/travel-insurance/to-cuba', s:1, pv:1},
+  {p:'/fr/travel-insurance/to-israel', s:1, pv:1},
+  {p:'/fr/travel-insurance/to-russia', s:1, pv:1},
+  {p:'/fr/travel-insurance/to-south-korea', s:1, pv:1},
+  {p:'/fr/travel-insurance/to-tunisia', s:1, pv:1},
+];
+
+function ga4ForSlug(slug) {
+  const r = ga4Raw.find(x => x.p.endsWith(slug));
+  return r ? r : {s:0, pv:0};
+}
+
+const ga4CC = {
+  'visa-welcome':  {s:5, pv:7},
+  'visa-premier':  {s:1, pv:2},
+  'visa-ultim':    {s:1, pv:1},
+};
+
+// ─── GSC DATA ──────────────────────────────────────────────────────────────
+const travelData = [
+  { slug:'to-morocco',    imp:275, clics:1,  pos:35.6, topKw:'assurance voyage maroc' },
+  { slug:'to-thailand',   imp:390, clics:0,  pos:57.7, topKw:'frais médicaux thaïlande' },
+  { slug:'to-usa',        imp:229, clics:0,  pos:58.6, topKw:'meilleure assurance voyage etats unis' },
+  { slug:'to-canada',     imp:244, clics:0,  pos:42.3, topKw:'voyage en train tout compris canada' },
+  { slug:'to-algeria',    imp:106, clics:0,  pos:41.3, topKw:"comparateur d'assurance algérie" },
+  { slug:'to-europe',     imp:62,  clics:0,  pos:23.3, topKw:'travel insurance for europe' },
+  { slug:'to-israel',     imp:41,  clics:0,  pos:26.6, topKw:'assurance voyage israël' },
+  { slug:'to-japan',      imp:54,  clics:1,  pos:62.4, topKw:'meilleur assurance voyage japon' },
+  { slug:'to-australia',  imp:36,  clics:0,  pos:63.1, topKw:'australie assurance santé' },
+  { slug:'to-new-zealand',imp:17,  clics:0,  pos:21.2, topKw:'assurance voyage nouvelle zelande' },
+  { slug:'to-uae',        imp:4,   clics:0,  pos:47.3, topKw:'assurance voyage emirats arabes unis' },
+  { slug:'to-china',      imp:4,   clics:0,  pos:49.8, topKw:'assurance voyage china' },
+  { slug:'to-zanzibar',   imp:3,   clics:0,  pos:45.7, topKw:'zanzibar assurance voyage' },
+  { slug:'to-russia',     imp:2,   clics:0,  pos:86.5, topKw:'assurance rapatriement russie' },
+  { slug:'to-bali',       imp:2,   clics:0,  pos:79.0, topKw:'assurance voyage bali' },
+  { slug:'to-asia',       imp:0, clics:0, pos:null, topKw:'—' },
+  { slug:'to-turkey',     imp:0, clics:0, pos:null, topKw:'—' },
+  { slug:'to-egypt',      imp:0, clics:0, pos:null, topKw:'—' },
+  { slug:'to-brazil',     imp:0, clics:0, pos:null, topKw:'—' },
+  { slug:'to-vietnam',    imp:0, clics:0, pos:null, topKw:'—' },
+  { slug:'to-cuba',       imp:0, clics:0, pos:null, topKw:'—' },
+  { slug:'to-mexico',     imp:0, clics:0, pos:null, topKw:'—' },
+  { slug:'to-india',      imp:0, clics:0, pos:null, topKw:'—' },
+  { slug:'to-costa-rica', imp:0, clics:0, pos:null, topKw:'—' },
+  { slug:'to-argentina',  imp:0, clics:0, pos:null, topKw:'—' },
+  { slug:'to-tunisia',    imp:0, clics:0, pos:null, topKw:'—' },
+  { slug:'to-south-korea',imp:0, clics:0, pos:null, topKw:'—' },
+];
+
+const ccData = [
+  { bank:'LCL', slug:'mastercard-inventive',      payload:false },
+  { bank:'LCL', slug:'mastercard-platinum-plus',  payload:false },
+  { bank:'LCL', slug:'mastercard-excellence',     payload:false },
+  { bank:'LCL', slug:'mastercard-platinum-lcl',   payload:false },
+  { bank:'LCL', slug:'mastercard-standard',       payload:false },
+  { bank:'LCL', slug:'visa-cleo',                 payload:false },
+  { bank:'LCL', slug:'visa-infinite-lcl',         payload:true  },
+  { bank:'LCL', slug:'visa-premier-lcl',          payload:true  },
+  { bank:'LCL', slug:'visa-classic-lcl',          payload:true  },
+  { bank:"Caisse d'Epargne", slug:'visa-premier-caisse-epargne', payload:true  },
+  { bank:"Caisse d'Epargne", slug:'visa-platinum',               payload:false },
+  { bank:"Caisse d'Epargne", slug:'visa-infinite',               payload:false },
+  { bank:"Caisse d'Epargne", slug:'visa-electron-sensea',        payload:false },
+  { bank:"Caisse d'Epargne", slug:'visa-classic',                payload:false },
+  { bank:'BoursoBank', slug:'visa-premier',  payload:false },
+  { bank:'BoursoBank', slug:'visa-welcome',  payload:false },
+  { bank:'BoursoBank', slug:'visa-metal',    payload:false },
+  { bank:'BoursoBank', slug:'visa-ultim',    payload:false },
+];
+
+// ─── HELPERS ───────────────────────────────────────────────────────────────
+function posClass(p) {
+  if (p===null) return '';
+  if (p<20) return 'pos-great';
+  if (p<40) return 'pos-good';
+  if (p<65) return 'pos-avg';
+  return 'pos-bad';
+}
+function statusBadge(imp, clics) {
+  if (imp===0) return `<span class="badge-not-indexed text-xs px-2 py-0.5 rounded-full">Non indexée</span>`;
+  if (clics>0) return `<span class="badge-indexed text-xs px-2 py-0.5 rounded-full">Indexée ✓</span>`;
+  return `<span class="badge-crawled text-xs px-2 py-0.5 rounded-full">En crawl</span>`;
+}
+
+// ─── BUILD TRAVEL TABLE ────────────────────────────────────────────────────
+const travelTbody = document.getElementById('travel-tbody');
+travelData.forEach(r => {
+  const ga = ga4ForSlug(r.slug);
+  const posStr = r.pos!==null ? `<span class="${posClass(r.pos)}">${r.pos.toFixed(1)}</span>` : '<span class="text-slate-300">—</span>';
+  const sessStr = ga.s>0 ? `<span class="font-medium text-blue-600">${ga.s}</span>` : '<span class="text-slate-300">0</span>';
+  const pvStr = ga.pv>0 ? `<span class="text-blue-400">${ga.pv}</span>` : '<span class="text-slate-300">0</span>';
+  const deals = dealsData[r.slug] || 0;
+  const dealsStr = deals>0 ? `<span class="font-bold text-emerald-600">${deals} 🤝</span>` : '<span class="text-slate-300">—</span>';
+  const url = `https://hellosafe.com/fr/travel-insurance/${r.slug}`;
+  travelTbody.innerHTML += `
+    <tr class="border-b border-slate-50 transition-colors">
+      <td class="px-6 py-2.5"><a href="${url}" target="_blank" class="text-indigo-500 hover:underline font-mono text-xs">${r.slug}</a></td>
+      <td class="px-3 py-2.5 text-center">${statusBadge(r.imp, r.clics)}</td>
+      <td class="px-3 py-2.5 text-right text-violet-600">${r.imp>0?`<span class="font-medium">${r.imp}</span>`:'<span class="text-slate-300">0</span>'}</td>
+      <td class="px-3 py-2.5 text-right">${r.clics>0?`<span class="font-bold text-emerald-600">${r.clics}</span>`:'<span class="text-slate-300">0</span>'}</td>
+      <td class="px-3 py-2.5 text-right">${posStr}</td>
+      <td class="px-3 py-2.5 text-right">${sessStr}</td>
+      <td class="px-3 py-2.5 text-right">${pvStr}</td>
+      <td class="px-3 py-2.5 text-right">${dealsStr}</td>
+      <td class="px-3 py-2.5 text-xs text-slate-500">${r.topKw}</td>
+    </tr>`;
+});
+
+// ─── BUILD CC TABLE ────────────────────────────────────────────────────────
+const ccTbody = document.getElementById('cc-tbody');
+ccData.forEach(r => {
+  const bankSlug = r.bank==='LCL'?'lcl':r.bank==="Caisse d'Epargne"?'caisse-epargne':'BoursoBank';
+  const ga = ga4CC[r.slug] || {s:0, pv:0};
+  const sessStr = ga.s>0 ? `<span class="font-medium text-blue-600">${ga.s}</span>` : '<span class="text-slate-300">0</span>';
+  const pvStr = ga.pv>0 ? `<span class="text-blue-400">${ga.pv}</span>` : '<span class="text-slate-300">0</span>';
+  const payloadBadge = r.payload
+    ? `<span class="badge-payload text-xs px-2 py-0.5 rounded-full">✓ Payload</span>`
+    : `<span class="badge-no-payload text-xs px-2 py-0.5 rounded-full">Manquant</span>`;
+  ccTbody.innerHTML += `
+    <tr class="border-b border-slate-50 transition-colors">
+      <td class="px-6 py-2.5 text-xs font-medium text-slate-700">${r.bank}</td>
+      <td class="px-4 py-2.5 font-mono text-xs text-indigo-500">${r.slug}</td>
+      <td class="px-4 py-2.5 text-center"><span class="badge-not-indexed text-xs px-2 py-0.5 rounded-full">Non indexée</span></td>
+      <td class="px-4 py-2.5 text-center">${payloadBadge}</td>
+      <td class="px-4 py-2.5 text-right">${sessStr}</td>
+      <td class="px-4 py-2.5 text-right">${pvStr}</td>
+    </tr>`;
+});
+
+// ─── TABS ──────────────────────────────────────────────────────────────────
+function showTab(name) {
+  ['travel','creditcard','es','trend'].forEach(t => {
+    document.getElementById(`panel-${t}`).classList.toggle('hidden', t!==name);
+    document.getElementById(`tab-${t}`).className = `pb-3 text-sm transition-colors ${t===name?'tab-active':'tab-inactive'}`;
+  });
+}
+
+// ─── GSC TREND CHART ──────────────────────────────────────────────────────
+const weeks = ['26j','2f','9f','16f','23f','2m','9m','16m','23m','30m','6a','13a','20a','27a'];
+new Chart(document.getElementById('trendChart').getContext('2d'), {
+  type:'line',
+  data:{
+    labels:weeks,
+    datasets:[
+      {label:'Maroc',    data:[13,10,7,3,7,75,24,17,12,10,20,64,13,9],  borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,.08)',tension:.3,pointRadius:2,borderWidth:2},
+      {label:'Thaïlande',data:[0,0,0,0,0,0,0,0,0,0,0,0,0,390],          borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.08)',tension:.3,pointRadius:2,borderWidth:2},
+      {label:'USA',      data:[79,0,0,0,0,0,11,86,25,13,9,30,30,23],     borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.08)',tension:.3,pointRadius:2,borderWidth:2},
+      {label:'Canada',   data:[49,8,14,56,22,25,11,22,10,4,9,13,26,24],  borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.08)',tension:.3,pointRadius:2,borderWidth:2},
+    ]
+  },
+  options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{beginAtZero:true,ticks:{font:{size:9}},grid:{color:'rgba(0,0,0,.04)'}}}}
+});
+
+// ─── GA4 SESSIONS CHART ───────────────────────────────────────────────────
+const topPages = ga4Raw.filter(x=>x.s>0).sort((a,b)=>b.s-a.s).slice(0,8);
+new Chart(document.getElementById('sessionChart').getContext('2d'), {
+  type:'bar',
+  data:{
+    labels: topPages.map(x=>x.p.replace('/fr/travel-insurance/','').replace('/fr/credit-card-insurance/france/','')),
+    datasets:[
+      {label:'Sessions',  data:topPages.map(x=>x.s),  backgroundColor:'rgba(99,102,241,.7)',borderRadius:4},
+      {label:'Pageviews', data:topPages.map(x=>x.pv), backgroundColor:'rgba(59,130,246,.4)',borderRadius:4},
+    ]
+  },
+  options:{responsive:true,plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{beginAtZero:true,ticks:{font:{size:9}},grid:{color:'rgba(0,0,0,.04)'}}}}
+});
+</script>
+</body>
+</html>
