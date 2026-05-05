@@ -67,11 +67,11 @@
 <!-- KPIs -->
 <div class="grid grid-cols-2 sm:grid-cols-6 gap-3 mb-6" id="kpi-grid">
   <div class="card p-4"><p class="text-xs text-slate-500 uppercase tracking-wide mb-1">URLs</p><p class="kpi-val text-slate-800">45</p><p class="text-xs text-slate-400 mt-1">suivies</p></div>
-  <div class="card p-4"><p class="text-xs text-slate-500 uppercase tracking-wide mb-1">Indexées</p><p class="kpi-val text-emerald-600" id="kpi-indexed">—</p><p class="text-xs text-slate-400 mt-1">GSC</p></div>
-  <div class="card p-4"><p class="text-xs text-slate-500 uppercase tracking-wide mb-1">Impressions</p><p class="kpi-val text-violet-600" id="kpi-imp">—</p><p class="text-xs text-slate-400 mt-1">GSC</p></div>
-  <div class="card p-4"><p class="text-xs text-slate-500 uppercase tracking-wide mb-1">Clics GSC</p><p class="kpi-val text-indigo-600" id="kpi-clicks">—</p><p class="text-xs text-slate-400 mt-1">GSC</p></div>
-  <div class="card p-4"><p class="text-xs text-slate-500 uppercase tracking-wide mb-1">Sessions</p><p class="kpi-val text-blue-600" id="kpi-sessions">—</p><p class="text-xs text-slate-400 mt-1">GA4</p></div>
-  <div class="card p-4 border-t-4 border-emerald-400"><p class="text-xs text-slate-500 uppercase tracking-wide mb-1">Deals</p><p class="kpi-val text-emerald-600" id="kpi-deals">—</p><p class="text-xs text-slate-400 mt-1">Payload</p></div>
+  <div class="card p-4"><p class="text-xs text-slate-500 uppercase tracking-wide mb-1">Indexées</p><p class="kpi-val text-emerald-600" id="kpi-indexed">—</p><p class="text-xs mt-1" id="kpi-indexed-delta"></p></div>
+  <div class="card p-4"><p class="text-xs text-slate-500 uppercase tracking-wide mb-1">Impressions</p><p class="kpi-val text-violet-600" id="kpi-imp">—</p><p class="text-xs mt-1" id="kpi-imp-delta"></p></div>
+  <div class="card p-4"><p class="text-xs text-slate-500 uppercase tracking-wide mb-1">Clics GSC</p><p class="kpi-val text-indigo-600" id="kpi-clicks">—</p><p class="text-xs mt-1" id="kpi-clicks-delta"></p></div>
+  <div class="card p-4"><p class="text-xs text-slate-500 uppercase tracking-wide mb-1">Sessions</p><p class="kpi-val text-blue-600" id="kpi-sessions">—</p><p class="text-xs mt-1" id="kpi-sessions-delta"></p></div>
+  <div class="card p-4 border-t-4 border-emerald-400"><p class="text-xs text-slate-500 uppercase tracking-wide mb-1">Deals</p><p class="kpi-val text-emerald-600" id="kpi-deals">—</p><p class="text-xs mt-1" id="kpi-deals-delta"></p></div>
 </div>
 
 <!-- Main card with tabs -->
@@ -93,10 +93,11 @@
         <th class="text-left px-5 py-3">URL</th>
         <th class="text-center px-3 py-3">Statut</th>
         <th class="text-right px-3 py-3 text-violet-400">Imp.</th>
+        <th class="text-right px-3 py-3 text-violet-300">vs préc.</th>
         <th class="text-right px-3 py-3 text-violet-400">Clics</th>
         <th class="text-right px-3 py-3 text-violet-400">Pos.</th>
         <th class="text-right px-3 py-3 text-blue-400">Sessions</th>
-        <th class="text-right px-3 py-3 text-blue-400">PV</th>
+        <th class="text-right px-3 py-3 text-blue-300">vs préc.</th>
         <th class="text-right px-3 py-3 text-emerald-400">Deals</th>
         <th class="text-left px-3 py-3">Top keyword</th>
       </tr></thead>
@@ -306,57 +307,107 @@ function deltaBadge(curr, prev) {
 // ═══════════════════════════════════════════════════════════════
 let chartInst = null, compInst = null, currentMetric = 'imp';
 
+// Inline delta: compact colored pill for table cells
+function inlineDelta(curr, prev) {
+  if (!prev || prev === 0) return '<span class="text-slate-200 text-xs">—</span>';
+  const pct = Math.round((curr - prev) / prev * 100);
+  if (pct === 0) return '<span class="text-slate-400 text-xs">±0%</span>';
+  const up = pct > 0;
+  return `<span class="text-xs font-semibold ${up?'text-emerald-600':'text-red-500'}">${up?'▲':'▼'} ${up?'+':''}${pct}%</span>`;
+}
+// KPI delta line
+function kpiDelta(curr, prev, unit='') {
+  if (!prev || prev === 0) { return '<span class="text-slate-300">pas de données préc.</span>'; }
+  const pct = Math.round((curr - prev) / prev * 100);
+  const up = pct >= 0;
+  const col = up ? 'text-emerald-600' : 'text-red-500';
+  return `<span class="${col} font-semibold">${up?'▲':'▼'} ${up?'+':''}${pct}%</span> <span class="text-slate-400">vs période préc. (${prev}${unit})</span>`;
+}
+
 function refresh() {
   const from = toNum(document.getElementById('dateFrom').value);
   const to   = toNum(document.getElementById('dateTo').value);
 
-  // ── GSC per slug ──────────────────────────────────────────────
-  const gscBySlug = {};
-  for (const r of GSC_WEEKLY) {
-    const rDate = toNum(r.d);
-    if (rDate < from || rDate > to) continue;
-    if (!gscBySlug[r.p]) gscBySlug[r.p] = {imp:0,clicks:0,posSum:0,posW:0};
-    const g = gscBySlug[r.p];
-    g.imp += r.i; g.clicks += r.c;
-    g.posSum += r.pos * r.i; g.posW += r.i;
-  }
-  // Add static pages if date range covers them (use full period)
-  for (const [slug, v] of Object.entries(STATIC_GSC)) {
-    if (!gscBySlug[slug]) gscBySlug[slug] = {imp:v.imp, clicks:v.clicks, posSum:v.pos*v.imp, posW:v.imp};
-  }
+  // ── Previous period bounds ────────────────────────────────────
+  const fromDate   = dateFromNum(from);
+  const toDate     = dateFromNum(to);
+  const durationMs = toDate - fromDate;
+  const prevToDate   = new Date(fromDate - 86400000);
+  const prevFromDate = new Date(prevToDate - durationMs);
+  const prevFrom = numFromDate(prevFromDate);
+  const prevTo   = numFromDate(prevToDate);
 
-  // ── GA4 per slug ──────────────────────────────────────────────
-  const ga4BySlug = {};
-  for (const [fullPath, dates] of Object.entries(GA4_DAILY)) {
-    const slug = fullPath.replace('/fr/travel-insurance/','');
-    for (const [dateStr, v] of Object.entries(dates)) {
-      const d = parseInt(dateStr);
-      if (d < from || d > to) continue;
-      if (!ga4BySlug[slug]) ga4BySlug[slug] = {s:0,pv:0};
-      ga4BySlug[slug].s += v.s; ga4BySlug[slug].pv += v.pv;
+  // ── Helper: build GSC / GA4 / Deals aggregation for any [f,t] ─
+  function buildGSC(f, t) {
+    const m = {};
+    for (const r of GSC_WEEKLY) {
+      const rDate = toNum(r.d);
+      if (rDate < f || rDate > t) continue;
+      if (!m[r.p]) m[r.p] = {imp:0,clicks:0,posSum:0,posW:0};
+      m[r.p].imp += r.i; m[r.p].clicks += r.c;
+      m[r.p].posSum += r.pos * r.i; m[r.p].posW += r.i;
     }
+    for (const [slug, v] of Object.entries(STATIC_GSC))
+      if (!m[slug]) m[slug] = {imp:v.imp, clicks:v.clicks, posSum:v.pos*v.imp, posW:v.imp};
+    return m;
+  }
+  function buildGA4(f, t) {
+    const m = {};
+    for (const [fullPath, dates] of Object.entries(GA4_DAILY)) {
+      const slug = fullPath.replace('/fr/travel-insurance/','');
+      for (const [dateStr, v] of Object.entries(dates)) {
+        const d = parseInt(dateStr);
+        if (d < f || d > t) continue;
+        if (!m[slug]) m[slug] = {s:0,pv:0};
+        m[slug].s += v.s; m[slug].pv += v.pv;
+      }
+    }
+    return m;
+  }
+  function buildDeals(f, t) {
+    const m = {};
+    for (const r of DEALS_RAW) {
+      if (r.p.includes('/')) continue;
+      const d = toNum(r.d);
+      if (d < f || d > t) continue;
+      m[r.p] = (m[r.p]||0)+1;
+    }
+    return m;
   }
 
-  // ── Deals per slug ────────────────────────────────────────────
-  const dealsBySlug = {};
-  for (const r of DEALS_RAW) {
-    if (r.p.includes('/')) continue; // skip non-FR
-    const d = toNum(r.d);
-    if (d < from || d > to) continue;
-    dealsBySlug[r.p] = (dealsBySlug[r.p]||0)+1;
-  }
+  // ── Current & previous aggregations ──────────────────────────
+  const gscBySlug  = buildGSC(from, to);
+  const ga4BySlug  = buildGA4(from, to);
+  const dealsBySlug = buildDeals(from, to);
+
+  const gscPrev   = buildGSC(prevFrom, prevTo);
+  const ga4Prev   = buildGA4(prevFrom, prevTo);
+  const dealsPrev = buildDeals(prevFrom, prevTo);
 
   // ── KPIs ──────────────────────────────────────────────────────
-  const totalImp = Object.values(gscBySlug).reduce((a,b)=>a+b.imp,0);
+  const totalImp    = Object.values(gscBySlug).reduce((a,b)=>a+b.imp,0);
   const totalClicks = Object.values(gscBySlug).reduce((a,b)=>a+b.clicks,0);
-  const totalSess = Object.values(ga4BySlug).reduce((a,b)=>a+b.s,0);
-  const totalDeals = Object.values(dealsBySlug).reduce((a,b)=>a+b,0);
-  const indexed = Object.values(gscBySlug).filter(v=>v.imp>0).length;
-  document.getElementById('kpi-indexed').textContent = indexed;
-  document.getElementById('kpi-imp').textContent = fmt(totalImp);
-  document.getElementById('kpi-clicks').textContent = totalClicks;
+  const totalSess   = Object.values(ga4BySlug).reduce((a,b)=>a+b.s,0);
+  const totalDeals  = Object.values(dealsBySlug).reduce((a,b)=>a+b,0);
+  const indexed     = Object.values(gscBySlug).filter(v=>v.imp>0).length;
+
+  const prevTotalImp    = Object.values(gscPrev).reduce((a,b)=>a+b.imp,0);
+  const prevTotalClicks = Object.values(gscPrev).reduce((a,b)=>a+b.clicks,0);
+  const prevTotalSess   = Object.values(ga4Prev).reduce((a,b)=>a+b.s,0);
+  const prevTotalDeals  = Object.values(dealsPrev).reduce((a,b)=>a+b,0);
+  const prevIndexed     = Object.values(gscPrev).filter(v=>v.imp>0).length;
+
+  document.getElementById('kpi-indexed').textContent  = indexed;
+  document.getElementById('kpi-imp').textContent      = fmt(totalImp);
+  document.getElementById('kpi-clicks').textContent   = totalClicks;
   document.getElementById('kpi-sessions').textContent = fmt(totalSess);
-  document.getElementById('kpi-deals').textContent = totalDeals;
+  document.getElementById('kpi-deals').textContent    = totalDeals;
+
+  document.getElementById('kpi-indexed-delta').innerHTML  = kpiDelta(indexed, prevIndexed);
+  document.getElementById('kpi-imp-delta').innerHTML      = kpiDelta(totalImp, prevTotalImp);
+  document.getElementById('kpi-clicks-delta').innerHTML   = kpiDelta(totalClicks, prevTotalClicks);
+  document.getElementById('kpi-sessions-delta').innerHTML = kpiDelta(totalSess, prevTotalSess);
+  document.getElementById('kpi-deals-delta').innerHTML    = kpiDelta(totalDeals, prevTotalDeals);
 
   // ── Summary ───────────────────────────────────────────────────
   buildSummary(from, to, gscBySlug, ga4BySlug, dealsBySlug);
@@ -365,8 +416,10 @@ function refresh() {
   const tb = document.getElementById('travel-tbody');
   tb.innerHTML = '';
   for (const slug of TRAVEL_SLUGS) {
-    const g = gscBySlug[slug]||{imp:0,clicks:0,posSum:0,posW:0};
-    const ga = ga4BySlug[slug]||{s:0,pv:0};
+    const g    = gscBySlug[slug]||{imp:0,clicks:0,posSum:0,posW:0};
+    const gp   = gscPrev[slug]||{imp:0,clicks:0,posSum:0,posW:0};
+    const ga   = ga4BySlug[slug]||{s:0,pv:0};
+    const gap  = ga4Prev[slug]||{s:0,pv:0};
     const deals = dealsBySlug[slug]||0;
     const avgPos = g.posW>0 ? g.posSum/g.posW : null;
     const posStr = avgPos!==null?`<span class="${posC(avgPos)}">${avgPos.toFixed(1)}</span>`:'<span class="text-slate-300">—</span>';
@@ -375,10 +428,11 @@ function refresh() {
       <td class="px-5 py-2"><a href="${url}" target="_blank" class="text-indigo-500 hover:underline font-mono text-xs">${slug}</a></td>
       <td class="px-3 py-2 text-center">${statusBadge(g.imp,g.clicks)}</td>
       <td class="px-3 py-2 text-right text-violet-600">${g.imp>0?`<b>${g.imp}</b>`:'<span class="text-slate-300">0</span>'}</td>
+      <td class="px-3 py-2 text-right">${inlineDelta(g.imp, gp.imp)}</td>
       <td class="px-3 py-2 text-right">${g.clicks>0?`<b class="text-emerald-600">${g.clicks}</b>`:'<span class="text-slate-300">0</span>'}</td>
       <td class="px-3 py-2 text-right">${posStr}</td>
       <td class="px-3 py-2 text-right">${ga.s>0?`<b class="text-blue-600">${ga.s}</b>`:'<span class="text-slate-300">0</span>'}</td>
-      <td class="px-3 py-2 text-right">${ga.pv>0?`<span class="text-blue-400">${ga.pv}</span>`:'<span class="text-slate-300">0</span>'}</td>
+      <td class="px-3 py-2 text-right">${inlineDelta(ga.s, gap.s)}</td>
       <td class="px-3 py-2 text-right">${deals>0?`<b class="text-emerald-600">${deals} 🤝</b>`:'<span class="text-slate-300">—</span>'}</td>
       <td class="px-3 py-2 text-xs text-slate-500">${TOP_KW[slug]||'—'}</td>
     </tr>`;
@@ -388,13 +442,7 @@ function refresh() {
   buildTrendChart(from, to);
 
   // ── Comparison chart (impressions + clicks, current vs previous period) ──
-  const fromDate  = dateFromNum(from);
-  const toDate    = dateFromNum(to);
-  const durationMs = toDate - fromDate;
-  const prevToDate   = new Date(fromDate - 86400000);
-  const prevFromDate = new Date(prevToDate - durationMs);
-  const prevFrom = numFromDate(prevFromDate);
-  const prevTo   = numFromDate(prevToDate);
+  // prevFrom/prevTo/prevFromDate/prevToDate already computed above
 
   // Aggregate all pages by week
   const currAgg = {}, prevAgg = {};
